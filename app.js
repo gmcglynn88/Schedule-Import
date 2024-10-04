@@ -1,15 +1,9 @@
-document.getElementById('updateButton').addEventListener('click', updateSchedule);
-
-// Initialize Genesys Cloud client
-let client = platformClient.ApiClient.instance;
-
-// Configure the API client with your credentials
-client.setEnvironment('mypurecloud.ie'); // Set to your region
-client.setAccessToken('Token Implicit Grant'); // Use your OAuth token here
-
-// Hardcoded OAuth client credentials for testing
-const CLIENT_ID = '7e8e3254-775b-41c1-9859-6b69b7137fe3';
-const CLIENT_SECRET = 'THM3BwNmWr-imk-qJyFa5zk9pB7rqjDN3-K2TMa17IQ';
+document.addEventListener('DOMContentLoaded', () => {
+    getAccessToken().then(token => {
+        client.setAccessToken(token);
+        populateDropdowns(); // Populate dropdowns after getting the token
+    });
+});
 
 // Function to get an OAuth access token
 async function getAccessToken() {
@@ -20,8 +14,8 @@ async function getAccessToken() {
         },
         body: new URLSearchParams({
             grant_type: 'client_credentials',
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET
+            client_id: '7e8e3254-775b-41c1-9859-6b69b7137fe3',
+            client_secret: 'THM3BwNmWr-imk-qJyFa5zk9pB7rqjDN3-K2TMa17IQ'
         })
     });
 
@@ -32,194 +26,92 @@ async function getAccessToken() {
     return data.access_token;
 }
 
-// Call the function to get the access token before updating the schedule
-getAccessToken().then(token => {
-    client.setAccessToken(token);
-    updateSchedule(); // Now call your updateSchedule function after setting the token
-}).catch(err => {
-    console.error('Error getting access token:', err);
-});
-
-function updateSchedule() {
-    var strJSON = '';
-    let workforceInstance = new platformClient.WorkforceManagementApi();
-
+// Function to populate the dropdowns
+function populateDropdowns() {
+    // Populate Management Units Dropdown
     workforceInstance.getWorkforcemanagementAgentsMeManagementunit()
         .then((muData) => {
-            console.log(`getWorkforcemanagementAgentsMeManagementunit success! data: ${JSON.stringify(muData, null, 2)}`);
-            myMuID = muData.managementUnit.id;
-            var sMU = document.getElementById('selectMu');
-            if (sMU != undefined) sMU.value = myMuID;
+            const muSelect = document.getElementById('selectMu');
+            const agentID = muData.agent.id;
+            const businessUnitID = muData.businessUnit.id;
 
-            myBuID = muData.businessUnit.id;
-            var sBU = document.getElementById('selectBu');
-            if (sBU != undefined) sBU.value = myBuID;
+            // Populate Management Unit Dropdown
+            const option = document.createElement('option');
+            option.value = muData.managementUnit.id;
+            option.textContent = muData.managementUnit.name;
+            muSelect.appendChild(option);
+        })
+        .catch(err => console.error('Error fetching management unit:', err));
+}
 
-            var dStartWeek = getMonday(new Date());
-            var dToday = new Date();
-            dToday.setHours(0, 0, 0, 0);
-            let weekId = formatDate(dStartWeek, 'yyyy-MM-dd');
-            let opts = {
-                "includeOnlyPublished": true
+// Update Schedule Function
+function updateSchedule() {
+    workforceInstance.getWorkforcemanagementAgentsMeManagementunit()
+        .then(muData => {
+            const businessUnitID = muData.businessUnit.id; // Get business unit ID
+            const agentID = muData.agent.id; // Get agent ID
+
+            // Search for the agent's schedule
+            const searchParams = {
+                userIds: [agentID] // Searching by user ID
             };
 
-            workforceInstance.getWorkforcemanagementBusinessunitWeekSchedules(myBuID, weekId, opts)
-                .then((schedulesData) => {
-                    console.log(`getWorkforcemanagementBusinessunitWeekSchedules success! data: ${JSON.stringify(schedulesData, null, 2)}`);
+            workforceInstance.postWorkforcemanagementBusinessunitAgentschedulesSearch(businessUnitID, searchParams)
+                .then(scheduleData => {
+                    const scheduledID = scheduleData.entities[0].id; // Get the first schedule ID
+                    const weekID = '2024-10-01'; // Replace with actual week ID
 
-                    for (var i = 0; i < schedulesData.entities.length; i++) {
-                        let body = {
-                            managementUnitId: myMuID,
-                            userIds: [document.getElementById("selectAgent").value]
-                        };
-                        let opts = {};
+                    // Get shifts and activities of that schedule
+                    workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleAgentschedulesQuery(businessUnitID, weekID, scheduledID)
+                        .then(shiftData => {
+                            console.log('Shift Data:', shiftData);
 
-                        workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleAgentschedulesQuery(myBuID, schedulesData.entities[i].weekDate, schedulesData.entities[i].id, body, opts)
-                            .then((agentData) => {
-                                console.log(`postWorkforcemanagementBusinessunitWeekScheduleAgentschedulesQuery success! data: ${JSON.stringify(agentData, null, 2)}`);
-                                var modifiedShift = null;
+                            // Request an upload URL for the adjusted schedule
+                            workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleUpdateUploadurl(businessUnitID, weekID, scheduledID)
+                                .then(uploadData => {
+                                    console.log('Upload URL:', uploadData.url);
 
-                                for (var j = 0; j < agentData.result.agentSchedules.length; j++) {
-                                    for (var k = 0; k < agentData.result.agentSchedules[j].shifts.length; k++) {
-                                        var shiftDate = new Date(agentData.result.agentSchedules[j].shifts[k].startDate);
-                                        shiftDate.setHours(0, 0, 0, 0);
-                                        if (shiftDate.getTime() == dToday.getTime()) {
-
-                                            agentData.result.agentSchedules[j].shifts[k].manuallyEdited = true;
-                                            modifiedShift = agentData.result.agentSchedules[j].shifts[k];
-
-                                            console.log(`agentShift: ${JSON.stringify(agentData.result.agentSchedules[j].shifts[k], null, 2)}`);
-
-                                            shiftDate.setHours(6, 0, 0, 0);
-                                            var shiftStartTime = new Date(agentData.result.agentSchedules[j].shifts[k].activities[0].startDate);
-                                            const timeInput = document.querySelector('input[type="time"]');
-                                            const desiredStartTime = new Date();
-                                            desiredStartTime.setHours(timeInput.value.split(':')[0]);
-                                            desiredStartTime.setMinutes(timeInput.value.split(':')[1]);
-                                            desiredStartTime.setSeconds(0);
-                                            desiredStartTime.setMilliseconds(0);
-                                            var deltaMinutes = (desiredStartTime - shiftStartTime) / (1000 * 60);
-
-                                            for (var m = 0; m < agentData.result.agentSchedules[j].shifts[k].activities.length; m++) {
-                                                var shiftTime = new Date(agentData.result.agentSchedules[j].shifts[k].activities[m].startDate);
-                                                shiftTime.setMinutes(shiftTime.getMinutes() + deltaMinutes);
-                                                agentData.result.agentSchedules[j].shifts[k].activities[m].startDate = shiftTime.toISOString();
-                                            }
-                                        }
-                                    }
-                                }
-
-                                var uploadData = {};
-                                uploadData.metadata = {};
-                                uploadData.metadata.version = schedulesData.entities[0].metadata.version;
-                                uploadData.metadata.modifiedBy = {};
-                                uploadData.metadata.modifiedBy.id = myAgentID;
-                                const rightNow = new Date();
-                                uploadData.metadata.dateModified = rightNow.toISOString();
-                                uploadData.agentSchedules = [{}];
-                                uploadData.agentSchedules[0].userId = agentData.result.agentSchedules[0].user.id;
-                                uploadData.agentSchedules[0].shifts = [{}];
-                                uploadData.agentSchedules[0].shifts[0].id = modifiedShift.id;
-                                uploadData.agentSchedules[0].shifts[0].manuallyEdited = true;
-                                uploadData.agentSchedules[0].shifts[0].activities = modifiedShift.activities;
-                                uploadData.agentSchedules[0].fullDayTimeOffMarkers = [];
-                                uploadData.agentSchedules[0].metadata = {};
-                                uploadData.agentSchedules[0].metadata.version = agentData.result.agentSchedules[0].metadata.version;
-                                uploadData.agentSchedules[0].metadata.dateModified = rightNow.toISOString();
-                                uploadData.agentSchedules[0].metadata.modifiedBy = {};
-                                uploadData.agentSchedules[0].metadata.modifiedBy.id = myAgentID;
-
-                                var jsonRes = JSON.stringify(uploadData);
-
-                                var jsonData = {
-                                    "json": jsonRes
-                                };
-                                $.ajax({
-                                    type: "POST",
-                                    url: "/Adjust Schedule?handler=GetLength",
-                                    data: jsonData,
-                                    contentType: 'application/x-www-form-urlencoded',
-                                    crossDomain: true,
-                                    headers: {
-                                        "RequestVerificationToken": $('input:hidden[name="__RequestVerificationToken"]').val()
-                                    },
-                                    success: function (nLength) {
-                                        console.log(`postGetLength success! data: ${JSON.stringify(nLength, null, 2)}`);
-
-                                        var body = { "contentLengthBytes": nLength };
-                                        workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleUpdateUploadurl(myBuID, weekId, schedulesData.entities[0].id, body)
-                                            .then((dataUp) => {
-                                                console.log(`postWorkforcemanagementBusinessunitWeekScheduleUpdateUploadurl success! data: ${JSON.stringify(dataUp, null, 2)}`);
-                                                var theData = {
-                                                    "buId": myBuID,
-                                                    "muId": myMuID,
-                                                    "tagging": dataUp.headers["x-amz-tagging"],
-                                                    "url": dataUp.url,
-                                                    "json": jsonRes
-                                                };
-                                                $.ajax({
-                                                    type: "POST",
-                                                    url: "/Adjust Schedule?handler=Put",
-                                                    data: theData,
-                                                    contentType: 'application/x-www-form-urlencoded',
-                                                    crossDomain: true,
-                                                    headers: {
-                                                        "RequestVerificationToken": $('input:hidden[name="__RequestVerificationToken"]').val()
-                                                    },
-                                                    success: function (r) {
-                                                        console.log(`postPUT success! data: ${JSON.stringify(r, null, 2)}`);
-
-                                                        let body = { "uploadKey": dataUp.uploadKey };
-
-                                                        workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleUpdate(myBuID, weekId, schedulesData.entities[0].id, body)
-                                                            .then((data) => {
-                                                                console.log(`postWorkforcemanagementBusinessunitWeekScheduleUpdate success! data: ${JSON.stringify(data, null, 2)}`);
-                                                            })
-                                                            .catch((err) => {
-                                                                console.log("There was a failure calling postWorkforcemanagementBusinessunitWeekScheduleUpdate");
-                                                                console.error(err);
-                                                            });
-                                                    },
-                                                    error: function (XMLHttpRequest, textStatus, errorThrown) {
-                                                        alert("Status: " + textStatus);
-                                                        alert("Error: " + errorThrown);
+                                    // Prepare adjusted schedule data (example structure)
+                                    const adjustedScheduleData = {
+                                        agentSchedules: [
+                                            {
+                                                userId: agentID,
+                                                shifts: [
+                                                    {
+                                                        id: 'example-shift-id', // Replace with actual shift ID
+                                                        manuallyEdited: true,
+                                                        activities: shiftData.result.agentSchedules[0].shifts[0].activities // Adjust activities as needed
                                                     }
-                                                });
-                                            })
-                                            .catch((err) => {
-                                                console.log("There was a failure calling postWorkforcemanagementBusinessunitWeekShorttermforecastsImportUploadurl");
-                                                console.error(err);
-                                            });
-                                    }
-                                });
-                            })
-                            .catch((err) => {
-                                console.log("There was a failure calling postWorkforcemanagementBusinessunitWeekScheduleAgentschedulesQuery");
-                                console.error(err);
-                            });
-                    }
+                                                ]
+                                            }
+                                        ]
+                                    };
+
+                                    // Upload the adjusted schedule
+                                    fetch(uploadData.url, {
+                                        method: 'PUT',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify(adjustedScheduleData)
+                                    })
+                                    .then(response => {
+                                        if (response.ok) {
+                                            console.log('Schedule updated successfully!');
+                                        } else {
+                                            console.error('Failed to update schedule:', response.statusText);
+                                        }
+                                    })
+                                    .catch(err => console.error('Error updating schedule:', err));
+                                })
+                                .catch(err => console.error('Error requesting upload URL:', err));
+                        })
+                        .catch(err => console.error('Error fetching shift data:', err));
                 })
-                .catch((err) => {
-                    console.log("There was a failure calling getWorkforcemanagementBusinessunitWeekSchedules");
-                    console.error(err);
-                });
-
+                .catch(err => console.error('Error searching for agent schedule:', err));
         })
-        .catch((err) => {
-            console.log('There was a failure calling getWorkforcemanagementAgentsMeManagementunit');
-            console.error(err);
-        });
+        .catch(err => console.error('Error fetching management unit:', err));
 }
 
-// Helper Functions (Define your helper functions here)
-function getMonday(date) {
-    var d = new Date(date);
-    var day = d.getDay();
-    var diff = d.getDate() - day + (day == 0 ? -6 : 1); // adjust when day is Sunday
-    return new Date(d.setDate(diff));
-}
-
-function formatDate(date, format) {
-    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    return date.toLocaleDateString('en-US', options).split('/').reverse().join('-'); // Change format to yyyy-MM-dd
-}
+// Button to trigger updateSchedule function
+document.getElementById('updateButton').addEventListener('click', updateSchedule);
