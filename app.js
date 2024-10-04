@@ -1,29 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
-    getAccessToken().then(token => {
+    const token = getAccessTokenFromUrl();
+    if (token) {
         client.setAccessToken(token);
         populateDropdowns(); // Populate dropdowns after getting the token
-    });
+    } else {
+        // Redirect to authorization URL if no token found
+        window.location.href = `https://login.mypurecloud.ie/oauth/authorize?response_type=token&client_id=7e8e3254-775b-41c1-9859-6b69b7137fe3&redirect_uri=https://gmcglynn88.github.io/Schedule-Import/`;
+    }
 });
 
-// Function to get an OAuth access token
-async function getAccessToken() {
-    const response = await fetch('https://api.mypurecloud.ie/oauth/token', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-            grant_type: 'client_credentials',
-            client_id: '7e8e3254-775b-41c1-9859-6b69b7137fe3',
-            client_secret: 'THM3BwNmWr-imk-qJyFa5zk9pB7rqjDN3-K2TMa17IQ'
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to get access token');
+// Function to extract access token from URL
+function getAccessTokenFromUrl() {
+    const hash = window.location.hash;
+    if (hash) {
+        const params = new URLSearchParams(hash.substring(1));
+        return params.get('access_token');
     }
-    const data = await response.json();
-    return data.access_token;
+    return null;
 }
 
 // Function to populate the dropdowns
@@ -113,5 +106,5 @@ function updateSchedule() {
         .catch(err => console.error('Error fetching management unit:', err));
 }
 
-// Button to trigger updateSchedule function
+// Add button listener for updating the schedule
 document.getElementById('updateButton').addEventListener('click', updateSchedule);
