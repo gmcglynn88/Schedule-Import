@@ -27,7 +27,13 @@ function populateDropdowns() {
     workforceInstance.getWorkforcemanagementAgentsMeManagementunit()
         .then((muData) => {
             console.log('Management Unit Data:', muData); // Log data for debugging
+            
             const muSelect = document.getElementById('selectMu');
+            if (!muData || !muData.managementUnit) {
+                console.error('No management unit data found');
+                return;
+            }
+
             const option = document.createElement('option');
             option.value = muData.managementUnit.id; // Ensure this is the correct property
             option.textContent = muData.managementUnit.name; // Ensure this is the correct property
@@ -36,7 +42,9 @@ function populateDropdowns() {
             // Populate Business Units Dropdown
             populateBusinessUnits(muData.managementUnit.businessUnit.id); // Use correct property to get business unit ID
         })
-        .catch(err => console.error('Error fetching management unit:', err));
+        .catch(err => {
+            console.error('Error fetching management unit:', err);
+        });
 }
 
 // Function to populate Business Units
@@ -45,6 +53,12 @@ function populateBusinessUnits(businessUnitID) {
         .then((buData) => {
             console.log('Business Units Data:', buData); // Log data for debugging
             const buSelect = document.getElementById('selectBu');
+
+            if (!buData || !Array.isArray(buData)) {
+                console.error('No business unit data found or data is not an array');
+                return;
+            }
+
             buData.forEach(unit => {
                 const option = document.createElement('option');
                 option.value = unit.id; // Ensure this is the correct property
@@ -52,14 +66,16 @@ function populateBusinessUnits(businessUnitID) {
                 buSelect.appendChild(option);
             });
         })
-        .catch(err => console.error('Error fetching business units:', err));
+        .catch(err => {
+            console.error('Error fetching business units:', err);
+        });
 }
 
 // Update Schedule Function
 function updateSchedule() {
     workforceInstance.getWorkforcemanagementAgentsMeManagementunit()
         .then(muData => {
-            const businessUnitID = muData.managementUnit.businessUnit.id; // Get business unit ID
+            const businessUnitID = muData.businessUnit.id; // Get business unit ID
             const agentID = muData.agent.id; // Get agent ID
 
             // Search for the agent's schedule
@@ -67,19 +83,19 @@ function updateSchedule() {
                 userIds: [agentID] // Searching by user ID
             };
 
-            workforceInstance.postWorkforcemanagementBusinessunitsAgentschedulesSearch(businessUnitID, searchParams)
+            workforceInstance.postWorkforcemanagementBusinessunitAgentschedulesSearch(businessUnitID, searchParams)
                 .then(scheduleData => {
                     console.log('Schedule Data:', scheduleData); // Log schedule data
                     const scheduledID = scheduleData.entities[0].id; // Get the first schedule ID
                     const weekID = '2024-10-01'; // Replace with actual week ID
 
                     // Get shifts and activities of that schedule
-                    workforceInstance.postWorkforcemanagementBusinessunitsWeeksSchedulesAgentschedulesQuery(businessUnitID, weekID, scheduledID)
+                    workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleAgentschedulesQuery(businessUnitID, weekID, scheduledID)
                         .then(shiftData => {
                             console.log('Shift Data:', shiftData); // Log shift data
 
                             // Request an upload URL for the adjusted schedule
-                            workforceInstance.postWorkforcemanagementBusinessunitsWeeksSchedulesUpdateUploadurl(businessUnitID, weekID, scheduledID)
+                            workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleUpdateUploadurl(businessUnitID, weekID, scheduledID)
                                 .then(uploadData => {
                                     console.log('Upload URL:', uploadData.url);
 
