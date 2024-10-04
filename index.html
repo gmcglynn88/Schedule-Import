@@ -3,18 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genesys Cloud App</title>
+    <title>Schedule Import</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/platform-client-sdk@latest/build/platformclient.min.js"></script>
+    <script src="app.js" defer></script>
 </head>
 <body>
-    <h1>Schedule Update</h1>
+    <h1>Adjust An Agent's Start Time</h1>
+    
+    <label for="selectMu">Agent:</label>
     <select id="selectMu"></select>
-    <select id="selectBu"></select>
-    <select id="selectAgent"></select>
-    <input type="time" id="timeInput">
-    <button id="updateButton">Update Schedule</button>
 
-    <script src="https://unpkg.com/platform-client-sdk@latest/build/platformclient.min.js"></script>
-    <script src="app.js"></script>
+    <label for="timeInput">Start Hour:</label>
+    <input type="time" id="timeInput" value="08:00">
+
+    <button id="updateButton">Update the Schedule</button>
+
+    <script>
+        // Add any additional JavaScript here if needed
+    </script>
 </body>
 </html>
