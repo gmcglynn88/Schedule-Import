@@ -5,7 +5,7 @@ let client = platformClient.ApiClient.instance;
 
 // Configure the API client with your credentials
 client.setEnvironment('mypurecloud.ie'); // Set to your region
-client.setAccessToken('YOUR_ACCESS_TOKEN'); // Use your OAuth token here
+client.setAccessToken('Token Implicit Grant'); // Use your OAuth token here
 
 // Hardcoded OAuth client credentials for testing
 const CLIENT_ID = '7e8e3254-775b-41c1-9859-6b69b7137fe3';
