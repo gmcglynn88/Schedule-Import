@@ -34,7 +34,7 @@ function populateDropdowns() {
             muSelect.appendChild(option);
 
             // Populate Business Units Dropdown
-            populateBusinessUnits(muData.businessUnit.id);
+            populateBusinessUnits(muData.managementUnit.businessUnit.id); // Use correct property to get business unit ID
         })
         .catch(err => console.error('Error fetching management unit:', err));
 }
@@ -59,7 +59,7 @@ function populateBusinessUnits(businessUnitID) {
 function updateSchedule() {
     workforceInstance.getWorkforcemanagementAgentsMeManagementunit()
         .then(muData => {
-            const businessUnitID = muData.businessUnit.id; // Get business unit ID
+            const businessUnitID = muData.managementUnit.businessUnit.id; // Get business unit ID
             const agentID = muData.agent.id; // Get agent ID
 
             // Search for the agent's schedule
@@ -67,19 +67,19 @@ function updateSchedule() {
                 userIds: [agentID] // Searching by user ID
             };
 
-            workforceInstance.postWorkforcemanagementBusinessunitAgentschedulesSearch(businessUnitID, searchParams)
+            workforceInstance.postWorkforcemanagementBusinessunitsAgentschedulesSearch(businessUnitID, searchParams)
                 .then(scheduleData => {
                     console.log('Schedule Data:', scheduleData); // Log schedule data
                     const scheduledID = scheduleData.entities[0].id; // Get the first schedule ID
                     const weekID = '2024-10-01'; // Replace with actual week ID
 
                     // Get shifts and activities of that schedule
-                    workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleAgentschedulesQuery(businessUnitID, weekID, scheduledID)
+                    workforceInstance.postWorkforcemanagementBusinessunitsWeeksSchedulesAgentschedulesQuery(businessUnitID, weekID, scheduledID)
                         .then(shiftData => {
                             console.log('Shift Data:', shiftData); // Log shift data
 
                             // Request an upload URL for the adjusted schedule
-                            workforceInstance.postWorkforcemanagementBusinessunitWeekScheduleUpdateUploadurl(businessUnitID, weekID, scheduledID)
+                            workforceInstance.postWorkforcemanagementBusinessunitsWeeksSchedulesUpdateUploadurl(businessUnitID, weekID, scheduledID)
                                 .then(uploadData => {
                                     console.log('Upload URL:', uploadData.url);
 
