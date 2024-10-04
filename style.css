@@ -1,5 +1,5 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'proxima-nova', Arial, sans-serif; /* Ensure Proxima Nova is applied */
     margin: 20px;
     padding: 20px;
     background-color: #f4f4f4;
@@ -7,12 +7,14 @@ body {
 
 h1 {
     color: #333;
+    font-family: 'proxima-nova', Arial, sans-serif; /* Use Proxima Nova for headings */
 }
 
 select, input[type="time"], button {
     margin: 10px 0;
     padding: 10px;
     font-size: 16px;
+    font-family: 'proxima-nova', Arial, sans-serif; /* Apply Proxima Nova to inputs and buttons */
 }
 
 button {
