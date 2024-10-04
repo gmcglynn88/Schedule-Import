@@ -4,8 +4,41 @@ document.getElementById('updateButton').addEventListener('click', updateSchedule
 let client = platformClient.ApiClient.instance;
 
 // Configure the API client with your credentials
-client.setEnvironment('mypurecloud.com'); // Set to your region
+client.setEnvironment('mypurecloud.ie'); // Set to your region
 client.setAccessToken('YOUR_ACCESS_TOKEN'); // Use your OAuth token here
+
+// Hardcoded OAuth client credentials for testing
+const CLIENT_ID = '7e8e3254-775b-41c1-9859-6b69b7137fe3';
+const CLIENT_SECRET = 'THM3BwNmWr-imk-qJyFa5zk9pB7rqjDN3-K2TMa17IQ';
+
+// Function to get an OAuth access token
+async function getAccessToken() {
+    const response = await fetch('https://api.mypurecloud.ie/oauth/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to get access token');
+    }
+    const data = await response.json();
+    return data.access_token;
+}
+
+// Call the function to get the access token before updating the schedule
+getAccessToken().then(token => {
+    client.setAccessToken(token);
+    updateSchedule(); // Now call your updateSchedule function after setting the token
+}).catch(err => {
+    console.error('Error getting access token:', err);
+});
 
 function updateSchedule() {
     var strJSON = '';
@@ -160,4 +193,33 @@ function updateSchedule() {
                                     }
                                 });
                             })
-                            .catch((
+                            .catch((err) => {
+                                console.log("There was a failure calling postWorkforcemanagementBusinessunitWeekScheduleAgentschedulesQuery");
+                                console.error(err);
+                            });
+                    }
+                })
+                .catch((err) => {
+                    console.log("There was a failure calling getWorkforcemanagementBusinessunitWeekSchedules");
+                    console.error(err);
+                });
+
+        })
+        .catch((err) => {
+            console.log('There was a failure calling getWorkforcemanagementAgentsMeManagementunit');
+            console.error(err);
+        });
+}
+
+// Helper Functions (Define your helper functions here)
+function getMonday(date) {
+    var d = new Date(date);
+    var day = d.getDay();
+    var diff = d.getDate() - day + (day == 0 ? -6 : 1); // adjust when day is Sunday
+    return new Date(d.setDate(diff));
+}
+
+function formatDate(date, format) {
+    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+    return date.toLocaleDateString('en-US', options).split('/').reverse().join('-'); // Change format to yyyy-MM-dd
+}
